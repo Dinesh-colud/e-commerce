@@ -23,10 +23,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@RestController
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
@@ -43,6 +47,8 @@ public class AuthController {
 
     @Autowired
     RoleRepository roleRepository;
+
+
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest){
@@ -80,7 +86,8 @@ public class AuthController {
     public ResponseEntity<?> registerUser(
             @Valid @RequestBody SignupRequest signupRequest) {
 
-        if (userRepository.existsByUsername(
+        // Check username
+        if (userRepository.existsByUserName(
                 signupRequest.getUsername())) {
 
             return ResponseEntity
@@ -90,6 +97,7 @@ public class AuthController {
                     ));
         }
 
+        // Check email
         if (userRepository.existsByEmail(
                 signupRequest.getEmail())) {
 
@@ -100,45 +108,94 @@ public class AuthController {
                     ));
         }
 
+        // Create user
         User user = new User(
                 signupRequest.getUsername(),
                 signupRequest.getEmail(),
-                encoder.encode(signupRequest.getPassword())
+                encoder.encode(
+                        signupRequest.getPassword()
+                )
         );
 
-        Set<String> strRole = signupRequest.getRole();
-        Set<Role> roles = new HashSet<>();
+        Set<String> strRoles =
+                signupRequest.getRole();
 
-        if(strRole == null){
-            Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error: role is not found"));
+        Set<Role> roles =
+                new HashSet<>();
+
+
+        // Default role
+        if (strRoles == null ||
+                strRoles.isEmpty()) {
+
+            Role userRole =
+                    roleRepository
+                            .findByRoleName(
+                                    AppRole.ROLE_USER)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Error: Role not found"));
+
             roles.add(userRole);
+
         } else {
-            // Admin -> ROLE_ADMIN
-            // seller -> ROLE_SELLER
-            strRole.forEach(role -> {
-                switch (role){
+
+            strRoles.forEach(role -> {
+
+                switch (role.toLowerCase()) {
+
                     case "admin":
-                        Role adminRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                                .orElseThrow(() -> new RuntimeException("Error: role is not found"));
+
+                        Role adminRole =
+                                roleRepository
+                                        .findByRoleName(
+                                                AppRole.ROLE_ADMIN)
+                                        .orElseThrow(() ->
+                                                new RuntimeException(
+                                                        "Error: Role not found"));
+
                         roles.add(adminRole);
                         break;
+
+
                     case "seller":
-                        Role sellerRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                                .orElseThrow(() -> new RuntimeException("Error: role is not found"));
+
+                        Role sellerRole =
+                                roleRepository
+                                        .findByRoleName(
+                                                AppRole.ROLE_SELLER)
+                                        .orElseThrow(() ->
+                                                new RuntimeException(
+                                                        "Error: Role not found"));
+
                         roles.add(sellerRole);
                         break;
+
+
                     default:
-                        Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                                .orElseThrow(() -> new RuntimeException("Error: role is not found"));
+
+                        Role userRole =
+                                roleRepository
+                                        .findByRoleName(
+                                                AppRole.ROLE_USER)
+                                        .orElseThrow(() ->
+                                                new RuntimeException(
+                                                        "Error: Role not found"));
+
                         roles.add(userRole);
                 }
+
             });
         }
+
         user.setRoles(roles);
+
         userRepository.save(user);
 
         return ResponseEntity.ok(
-                new MessageResponse("User registered successfully!"));
+                new MessageResponse(
+                        "User registered successfully!"
+                )
+        );
     }
 }
